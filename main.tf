@@ -159,8 +159,96 @@ resource "aws_iam_role_policy_attachment" "example_attachment" {
   policy_arn = "arn:aws:iam::aws:policy/AmazonS3ReadOnlyAccess"
 
 }
+resource "aws_security_group" "mariadb_sg" {
+  name        = "mariadb-sg"
+  description = "Allow inbound traffic for MariaDB RDS instance"
+  vpc_id      = aws_vpc.main.id
 
+  ingress {
+    from_port   = 3306
+    to_port     = 3306
+    protocol    = "tcp"
+    cidr_blocks = [aws_vpc.main.cidr_block] 
+  }
 
+  tags = {
+    Name = "mariadb-sg"
+  }
+}
+
+resource "aws_db_subnet_group" "default" {
+  name       = "main"
+  subnet_ids = [aws_subnet.public_subnet.id]
+
+  tags = {
+    Name = "My DB subnet group"
+  }
+}
+
+resource "aws_db_instance" "mariadb_instance" {
+  allocated_storage      = 20
+  storage_type           = "gp2"
+  engine                 = "mariadb"
+  engine_version         = "10.4"
+  instance_class         = "db.t2.micro"
+  db_name                   = "mymariadbdatabase"
+  username               = "admin"
+  password               = "yourpassword" # Consider AWS Secrets Manager or a Terraform variable
+  parameter_group_name   = "default.mariadb10.4"
+  skip_final_snapshot    = true
+  iam_database_authentication_enabled = true
+
+  db_subnet_group_name   = aws_db_subnet_group.default.id
+  vpc_security_group_ids = [aws_security_group.mariadb_sg.id]
+
+  tags = {
+    Name = "mariadb-instance"
+  }
+}
+
+resource "aws_iam_policy" "rds_connect_policy" {
+  name        = "RDSMariaDBConnect"
+  description = "Allow IAM authentication to RDS MariaDB instance"
+
+  policy = jsonencode({
+    Version = "2012-10-17",
+    Statement = [
+      {
+        Effect   = "Allow",
+        Action   = "rds-db:connect",
+        Resource = "${aws_db_instance.mariadb_instance.arn}/*"
+      }
+    ]
+  })
+}
+
+# If connecting from EC2:
+resource "aws_iam_role" "ec2_rds_connect_role" {
+  name = "EC2RDSConnectRole"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17",
+    Statement = [
+      {
+        Effect = "Allow",
+        Action = "sts:AssumeRole",
+        Principal = {
+          Service = "ec2.amazonaws.com"
+        }
+      }
+    ]
+  })
+}
+
+resource "aws_iam_role_policy_attachment" "ec2_rds_attach" {
+  role       = aws_iam_role.ec2_rds_connect_role.name
+  policy_arn = aws_iam_policy.rds_connect_policy.arn
+}
+
+resource "aws_iam_instance_profile" "ec2_rds_profile" {
+  name = "EC2RDSInstanceProfile"
+  role = aws_iam_role.ec2_rds_connect_role.name
+}
 
 resource "aws_iam_instance_profile" "example_profile" {
 
