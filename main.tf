@@ -239,6 +239,14 @@ resource "aws_instance" "ec2_instance" {
   subnet_id            = aws_subnet.public_subnet.id
   security_groups      = [aws_security_group.ssh-sg.id]
 
+  user_data = <<EOF
+  #!/bin/bash
+  echo "Updating to the Latest AL 2023"
+  dnf check-release-update --assumeyes
+  dnf update --security --assumeyes
+  sudo dnf install mariadb105-server --assumeyes
+  EOF
+
   tags = {
 
     Name = "${random_pet.bucket.id}-ec2-instance"

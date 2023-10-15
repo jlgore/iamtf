@@ -7,7 +7,7 @@ Three TF_VAR exports need to be made:
 * `export TF_VAR_bucket_name=YOURBUCKETNAME`
 * `export TF_VAR_profile_name=YOURPROFILENAME` the default is "default" but incase you have multiple profiles set up use this.
 * `export TF_VAR_ssh_key_pair=$(cat ~/.ssh/id_rsa.pub)` - you must have an existing SSH key for this command to work, if not you can modify the terraform to reflect an existing AWS PEM key pair.
-
+* `export TF_VAR_db_username=YOURDBUSERNAME`
 ## Deployment Steps
 
 1. `terraform init`
@@ -22,3 +22,7 @@ Can you see the bucket when you run the command `aws s3 ls`?
 Can you download the flag.txt in the bucket root?
 Can you upload a new file to the bucket using `aws s3 cp file.txt s3://YOURBUCKETNAME`?
 
+## Connect to RDS
+
+* `export RDS_TOKEN=$(aws rds generate-db-auth-token --hostname $YOUR_RDS_ENDPOINT --port 3306 --username $YOUR_USERNAME)`
+* `wget https://s3.amazonaws.com/rds-downloads/rds-ca-2019-root.pem`
